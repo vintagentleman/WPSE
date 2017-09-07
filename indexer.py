@@ -9,6 +9,12 @@ class Position(object):
         self.start = start
         self.end = end
 
+    def __repr__(self):
+        return 'line %s | column %s-%s' % (self.line, self.start, self.end)
+
+    def __eq__(self, other):
+        return self.line == other.line and self.start == other.start
+
 
 def index(file_path, db_path):
 
