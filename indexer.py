@@ -12,8 +12,11 @@ class Position(object):
     def __repr__(self):
         return 'line %s | column %s-%s' % (self.line, self.start, self.end)
 
+    def __hash__(self):
+        return hash((self.line, self.start))
+
     def __eq__(self, other):
-        return self.line == other.line and self.start == other.start
+        return (self.line, self.start) == (other.line, other.start)
 
 
 def index(file_path, db_path):

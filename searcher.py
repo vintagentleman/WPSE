@@ -4,6 +4,50 @@ import time
 from tokeniser import tokenise
 
 
+def get_n_sort(query, d, doc, cit_off_lim):
+    # Словарь для отслеживания текущего положения в списке позиций токенов
+    tracker = dict()
+    # Словарь из текущих позиций (минимум выбирается из них) и их токенов - для корректного обновления позиции
+    pos_front = dict()
+    # Счётчик для учёта оффсета и лимита
+    counter = 0
+
+    while True:
+        # Сначала очищаем словарь текущих позиций
+        pos_front.clear()
+
+        try:
+            for token in tokenise(query):
+                s = token.string
+                if s in d.keys():
+
+                    if s in tracker.keys():
+                        # Интервал может быть подмножеством списка позиций; отсюда первый сценарий остановки цикла
+                        pos_front[d[s][doc][tracker[s]]] = s
+                    else:
+                        # Первый проход
+                        tracker[s] = 0
+                        pos_front[d[s][doc][0]] = s
+
+        except IndexError:
+            break
+
+        else:
+            # Второй сценарий остановки цикла - достижение лимита. Но поскольку просто игнорировать
+            # позиции до оффсета мы не можем (где-то накапливать их всё равно надо), учитываем и его
+            counter += 1
+            if counter > cit_off_lim[0] + cit_off_lim[1]:
+                break
+            else:
+                # Надо узнать, позицию которого из токенов мы выдаём
+                min_pos = min(pos_front.keys(), key=lambda x: (x.line, x.start))
+                # Обновляем трекер *здесь*
+                tracker[pos_front[min_pos]] += 1
+
+                if counter > cit_off_lim[0]:
+                    yield min_pos
+
+
 def search(query, db_path, doc_off, doc_lim, cit_off_lim):
 
     doc_sets = list()
@@ -37,50 +81,9 @@ def search(query, db_path, doc_off, doc_lim, cit_off_lim):
         if not final_docs:
             return positions
 
-        # Собираем списки позиций, попутно же сортируем и учитываем оффсет и лимит
+        # Собираем списки позиций (с учётом оффсета и лимита)
         for i, doc in enumerate(final_docs):
-            # Словарь для отслеживания текущего положения в списке позиций токенов
-            tracker = dict()
-            # Список текущих позиций (минимум выбирается из них) и сохраняемых
-            pos_front = list()
-            pos_doc = list()
-            # Счётчик для учёта оффсета и лимита
-            counter = 0
-
-            while True:
-                # Сначала очищаем список текущих позиций
-                pos_front.clear()
-
-                try:
-                    for token in tokenise(query):
-                        s = token.string
-                        if s in d.keys():
-
-                            if s in tracker.keys():
-                                # В последующих проходах просто обновляем трекер
-                                if d[s][doc][tracker[s]] in pos_doc:
-                                    tracker[s] += 1
-                                # Здесь может всплыть IndexError; отсюда первый сценарий остановки цикла
-                                pos_front += [d[s][doc][tracker[s]]]
-                            else:
-                                # Первый проход
-                                tracker[s] = 0
-                                pos_front += [d[s][doc][0]]
-
-                    pos_doc += [min(pos_front, key=lambda x: (x.line, x.start))]
-
-                except IndexError:
-                    break
-
-                else:
-                    # Второй сценарий остановки цикла - достижение лимита. Но поскольку просто игнорировать
-                    # позиции до оффсета мы не можем (где-то накапливать их всё равно надо), учитываем и его
-                    counter += 1
-                    if counter > cit_off_lim[i][0] + cit_off_lim[i][1]:
-                        break
-
-            # Сохраняем; попутно отсекаем всё, что слева от оффсета
-            positions[doc] = pos_doc[cit_off_lim[i][0]:]
+            positions[doc] = list(get_n_sort(query, d, doc, cit_off_lim[i]))
 
         return positions
 
@@ -122,9 +125,9 @@ def tag(query, db_path, doc_off, doc_lim, cit_off_lim):
                     if l_border != 0:
                         l_border += 2
 
-                    left = ln[l_border : pos.start]
-                    word = ln[pos.start : pos.end]
-                    right = ln[pos.end : r_border + 1]
+                    left = ln[l_border:pos.start]
+                    word = ln[pos.start:pos.end]
+                    right = ln[pos.end:r_border + 1]
 
                     # Определяем предыдущую цитату (для склеивания)
                     pre_quote = ''
