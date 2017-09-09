@@ -4,7 +4,7 @@ from string import punctuation
 
 class Token(object):
 
-    def __init__(self, string, column, kind):
+    def __init__(self, string, column=0, kind='ALPHABETIC'):
         self.string = string
         self.length = len(string)
         self.start = column
