@@ -33,7 +33,7 @@ def stemmer(s):
 
             # Выделяем множество его конечных подстрок длины, не превосходящей max_len;
             # затем пересекаем его со словарём флексий и сортируем по возрастанию длины
-            infl = sorted(set(t[-i:] for i in range(max_len + 1) if t[-i:] in infl_glob), key=lambda x: len(x))
+            infl = sorted(set(t[-i:] for i in range(max_len + 1) if t[-i:] in infl_glob), key=lambda x: -len(x))
 
             if infl:
                 # Особо учитываем случай, когда основа совпала с флексией
@@ -79,7 +79,7 @@ def stemmer_by_token(t):
 
     max_len = max(len(fl) for fl in infl_glob)
     s = t.string
-    infl = sorted(set(s[-i:] for i in range(max_len + 1) if s[-i:] in infl_glob), key=lambda x: len(x))
+    infl = sorted(set(s[-i:] for i in range(max_len + 1) if s[-i:] in infl_glob), key=lambda x: -len(x))
 
     if infl:
         if len(infl) == 1 and infl[0] == s:
