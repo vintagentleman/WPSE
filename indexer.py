@@ -1,5 +1,6 @@
 import shelve
 from tokeniser import tokenise
+from stemmer import stemmer_by_token
 
 
 class Position(object):
@@ -31,3 +32,18 @@ def index(file_path, db_path):
                         data = d.setdefault(token.string, {})
                         data.setdefault(file_path, []).append(p)
                         d[token.string] = data
+
+
+def index_stems_as_keys(file_path, db_path):
+
+    with shelve.open(db_path) as d:
+        with open(file_path, mode='r', encoding='utf-8') as f:
+            for i, line in enumerate(f):
+                for token in tokenise(line):
+                    if token.kind in ('ALPHABETIC', 'NUMERIC'):
+                        for stem in stemmer_by_token(token):
+                            p = Position(i, token.start, token.end)
+
+                            data = d.setdefault(stem, {})
+                            data.setdefault(file_path, []).append(p)
+                            d[stem] = data

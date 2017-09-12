@@ -1,7 +1,10 @@
 import collections
 import shelve
+import sys
 import time
 from tokeniser import tokenise
+from indexer import Position
+from stemmer import greedy_stemmer_by_token
 
 
 def get_n_sort(query, d, doc, cit_off_lim):
@@ -16,53 +19,62 @@ def get_n_sort(query, d, doc, cit_off_lim):
         # Сначала очищаем словарь текущих позиций
         pos_front.clear()
 
-        try:
-            for token in tokenise(query):
-                s = token.string
-                if s in d.keys():
+        for t in tokenise(query):
+            s = greedy_stemmer_by_token(t)
 
-                    if s in tracker.keys():
-                        # Интервал может быть подмножеством списка позиций; отсюда первый сценарий остановки цикла
+            if s in d.keys():
+
+                if s in tracker.keys():
+                    # У одного из токенов позиции могут закончиться раньше, но это *не* повод останавливать цикл:
+                    # просто делаем позицию недосягаемой, и сравнение всегда проходит в пользу оставшихся
+                    try:
                         pos_front[d[s][doc][tracker[s]]] = s
-                    else:
-                        # Первый проход
-                        tracker[s] = 0
-                        pos_front[d[s][doc][0]] = s
+                    except IndexError:
+                        pos_front[Position(sys.maxsize, sys.maxsize, sys.maxsize)] = s
+                else:
+                    # Первый проход
+                    tracker[s] = 0
+                    pos_front[d[s][doc][0]] = s
 
-        except IndexError:
+        # Второй сценарий остановки цикла - достижение лимита. Но поскольку просто игнорировать
+        # позиции до оффсета мы не можем (где-то накапливать их всё равно надо), учитываем и его
+        counter += 1
+        if counter > cit_off_lim[0] + cit_off_lim[1]:
             break
-
         else:
-            # Второй сценарий остановки цикла - достижение лимита. Но поскольку просто игнорировать
-            # позиции до оффсета мы не можем (где-то накапливать их всё равно надо), учитываем и его
-            counter += 1
-            if counter > cit_off_lim[0] + cit_off_lim[1]:
-                break
-            else:
-                # Надо узнать, позицию которого из токенов мы выдаём
-                min_pos = min(pos_front.keys(), key=lambda x: (x.line, x.start))
-                # Обновляем трекер *здесь*
-                tracker[pos_front[min_pos]] += 1
+            # Надо узнать, позицию которого из токенов мы выдаём
+            min_pos = min(pos_front.keys(), key=lambda x: (x.line, x.start))
+            # Обновляем трекер *здесь*
+            tracker[pos_front[min_pos]] += 1
 
-                if counter > cit_off_lim[0]:
-                    yield min_pos
+            if counter > cit_off_lim[0]:
+                yield min_pos
 
 
 def search(query, db_path, doc_off, doc_lim, cit_off_lim):
 
     doc_sets = list()
     final_docs = list()
+    positions = collections.OrderedDict()
 
     with shelve.open(db_path) as d:
-        # Собираем список множеств документов, содержащих токены
-        for token in tokenise(query):
-            if token.string in d.keys():
-                doc_sets += [set(doc for doc in d[token.string].keys())]
+        # Собираем список множеств документов, содержащих псевдоосновы
+        for t in tokenise(query):
+            # Для поиска достаточно "жадного" стеммера (в отличие от построения БД)
+            s = greedy_stemmer_by_token(t)
+
+            if s in d.keys():
+                doc_sets += [set(doc for doc in d[s].keys())]
             else:
                 doc_sets += [set()]
 
+        # Исключение на случай, если задан пустой поисковый запрос
+        try:
+            req_docs = doc_sets[0]
+        except IndexError:
+            return positions
+
         # Пересекаем полученные множества и сортируем
-        req_docs = doc_sets[0]
         for doc_set in doc_sets:
             req_docs &= doc_set
         req_docs = sorted(req_docs)
@@ -74,8 +86,6 @@ def search(query, db_path, doc_off, doc_lim, cit_off_lim):
                 final_docs += [req_docs[i]]
             except IndexError:
                 break
-
-        positions = collections.OrderedDict()
 
         # Сценарий, когда подходящих документов не нашлось
         if not final_docs:
