@@ -4,7 +4,7 @@ import sys
 import time
 from tokeniser import tokenise
 from indexer import Position
-from stemmer import greedy_stemmer_by_token
+from stemmer import stemmer_by_token
 
 
 def get_n_sort(query, d, doc, cit_off_lim):
@@ -14,27 +14,28 @@ def get_n_sort(query, d, doc, cit_off_lim):
     pos_front = dict()
     # Счётчик для учёта оффсета и лимита
     counter = 0
+    # Ссылка на каждую предыдущую позицию (чтобы не выдавались одинаковые)
+    pre_min_pos = False
 
     while True:
         # Сначала очищаем словарь текущих позиций
         pos_front.clear()
 
         for t in tokenise(query):
-            s = greedy_stemmer_by_token(t)
+            for s in stemmer_by_token(t):
+                if s in d.keys():
 
-            if s in d.keys():
-
-                if s in tracker.keys():
-                    # У одного из токенов позиции могут закончиться раньше, но это *не* повод останавливать цикл:
-                    # просто делаем позицию недосягаемой, и сравнение всегда проходит в пользу оставшихся
-                    try:
-                        pos_front[d[s][doc][tracker[s]]] = s
-                    except IndexError:
-                        pos_front[Position(sys.maxsize, sys.maxsize, sys.maxsize)] = s
-                else:
-                    # Первый проход
-                    tracker[s] = 0
-                    pos_front[d[s][doc][0]] = s
+                    if s in tracker.keys():
+                        # У одного из токенов позиции могут закончиться раньше, но это *не* повод останавливать цикл:
+                        # просто делаем позицию недосягаемой, и сравнение всегда проходит в пользу оставшихся
+                        try:
+                            pos_front[d[s][doc][tracker[s]]] = s
+                        except IndexError:
+                            pos_front[Position(sys.maxsize, sys.maxsize, sys.maxsize)] = s
+                    else:
+                        # Первый проход
+                        tracker[s] = 0
+                        pos_front[d[s][doc][0]] = s
 
         # Второй сценарий остановки цикла - достижение лимита. Но поскольку просто игнорировать
         # позиции до оффсета мы не можем (где-то накапливать их всё равно надо), учитываем и его
@@ -48,7 +49,9 @@ def get_n_sort(query, d, doc, cit_off_lim):
             tracker[pos_front[min_pos]] += 1
 
             if counter > cit_off_lim[0]:
-                yield min_pos
+                if not pre_min_pos or (pre_min_pos and pre_min_pos != min_pos):
+                    pre_min_pos = min_pos
+                    yield min_pos
 
 
 def search(query, db_path, doc_off, doc_lim, cit_off_lim):
@@ -60,13 +63,11 @@ def search(query, db_path, doc_off, doc_lim, cit_off_lim):
     with shelve.open(db_path) as d:
         # Собираем список множеств документов, содержащих псевдоосновы
         for t in tokenise(query):
-            # Для поиска достаточно "жадного" стеммера (в отличие от построения БД)
-            s = greedy_stemmer_by_token(t)
-
-            if s in d.keys():
-                doc_sets += [set(doc for doc in d[s].keys())]
-            else:
-                doc_sets += [set()]
+            for s in stemmer_by_token(t):
+                if s in d.keys():
+                    doc_sets += [set(doc for doc in d[s].keys())]
+                else:
+                    doc_sets += [set()]
 
         # Исключение на случай, если задан пустой поисковый запрос
         try:
