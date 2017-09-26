@@ -82,8 +82,6 @@ class WPSE(CGIHTTPRequestHandler):
             limit = 2
             cit_off_lim = [(0, 9), (0, 9)]
 
-        print(query, offset - 1, limit - 1, cit_off_lim)
-
         for i in range(limit):
             if form.getfirst('action') == 'prev_cit_%s' % i:
                 new_off = max(0, cit_off_lim[i][0] - cit_off_lim[i][1] - 1)
@@ -107,7 +105,7 @@ class WPSE(CGIHTTPRequestHandler):
             offset = 1
 
         print(query, offset - 1, limit - 1, cit_off_lim)
-        concord = tag(query, 'w&p', offset - 1, limit - 1, cit_off_lim)
+        concord = tag(query, 'turgenev', offset - 1, limit - 1, cit_off_lim)
 
         self._set_headers(query)
         self.wfile.write(('''

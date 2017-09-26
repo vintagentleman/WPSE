@@ -10,19 +10,20 @@ class TestStemmer(unittest.TestCase):
 
         self.assertEqual(ana, {
             'мама': [('мам', 'а')],
-            'мамами': [('мамам', 'и'), ('мам', 'ами')],
-            'мамань': [('мамань', '')],
+            'мамами': [('мам', 'ами'), ('мама', 'ми'), ('мамам', 'и')],
+            'мамань': [('маман', 'ь')],
             'а': [('а', '')],
         })
 
         ana = stemmer.stemmer_by_token(Token('мама'))
         self.assertEqual(ana, ('мам',))
 
+        # Теперь здесь одна интерпретация вместо трёх
         ana = stemmer.stemmer_by_token(Token('мамами'))
-        self.assertEqual(ana, ('мамам', 'мам',))
+        self.assertEqual(ana, ('мам',))
 
         ana = stemmer.stemmer_by_token(Token('мамань'))
-        self.assertEqual(ana, ('мамань',))
+        self.assertEqual(ana, ('маман',))
 
         ana = stemmer.stemmer_by_token(Token('а'))
         self.assertEqual(ana, ('а',))
@@ -33,7 +34,7 @@ class TestStemmer(unittest.TestCase):
         self.assertEqual(ana, {
             'папа': 'пап',
             'папами': 'пап',
-            'папань': 'папань',
+            'папань': 'папан',
             'и': 'и',
         })
 
@@ -44,7 +45,7 @@ class TestStemmer(unittest.TestCase):
         self.assertEqual(ana, 'пап')
 
         ana = stemmer.greedy_stemmer_by_token(Token('папань'))
-        self.assertEqual(ana, 'папань')
+        self.assertEqual(ana, 'папан')
 
         ana = stemmer.greedy_stemmer_by_token(Token('и'))
         self.assertEqual(ana, 'и')

@@ -4,9 +4,10 @@ from tokeniser import tokenise
 infl_glob = {
     # Источник: http://www.slovorod.ru/russian-inflexions.html
     'а', 'ал', 'ала', 'али', 'ам', 'ами', 'ас', 'ать', 'ах', 'ая',
-    'е', 'ее', 'ей', 'ем', 'еми', 'емя', 'ет', 'ете', 'еть', 'ех', 'ешь' 'ею', 'её',
+    'е', 'его', 'ее', 'ей', 'ем', 'еми', 'емя', 'ет', 'ете', 'еть', 'ех', 'ешь' 'ею', 'её',
     'ёт', 'ёте', 'ёх', 'ёшь',
-    'и', 'ие', 'ий', 'им', 'ими', 'ит', 'ите', 'их', 'ишь', 'ию', 'м', 'ми', 'мя',
+    'и', 'ие', 'ий', 'им', 'ими', 'ит', 'ите', 'их', 'ишь', 'ию',
+    'м', 'ми', 'мя',
     'о', 'ов', 'ого', 'ое', 'ой', 'ом', 'ому', 'ою', 'оё',
     'см',
     'у', 'ул', 'ула', 'ули', 'ум', 'умя', 'ут', 'уть', 'ух', 'ую',
@@ -15,6 +16,11 @@ infl_glob = {
     'ь',
     'ю', 'ют',
     'я', 'ял', 'яла', 'яли', 'ять', 'яя',
+}
+
+
+stem_glob = {
+    'мам', 'мы', 'рам',
 }
 
 
@@ -33,7 +39,7 @@ def stemmer(s):
 
             # Выделяем множество его конечных подстрок длины, не превосходящей max_len;
             # затем пересекаем его со словарём флексий и сортируем по возрастанию длины
-            infl = sorted(set(t[-i:] for i in range(max_len + 1) if t[-i:] in infl_glob), key=lambda x: len(x))
+            infl = sorted(set(t[-i:] for i in range(max_len + 1) if t[-i:] in infl_glob), key=lambda x: -len(x))
 
             if infl:
                 # Особо учитываем случай, когда основа совпала с флексией
@@ -79,10 +85,15 @@ def stemmer_by_token(t):
 
     max_len = max(len(fl) for fl in infl_glob)
     s = t.string
-    infl = sorted(set(s[-i:] for i in range(max_len + 1) if s[-i:] in infl_glob), key=lambda x: len(x))
+    infl = sorted(set(s[-i:] for i in range(max_len + 1) if s[-i:] in infl_glob), key=lambda x: -len(x))
 
     if infl:
-        if len(infl) == 1 and infl[0] == s:
+        # Умный стемминг (с привлечением словаря)
+        stem = set(s[:-len(fl)] for fl in infl) & stem_glob
+
+        if stem:
+            return tuple(stem)
+        elif len(infl) == 1 and infl[0] == s:
             return s,
         else:
             return tuple(s[:-len(fl)] for fl in infl)

@@ -1,7 +1,10 @@
 import collections
 import shelve
+import sys
 import time
 from tokeniser import tokenise
+from indexer import Position
+from stemmer import stemmer_by_token
 
 
 def get_n_sort(query, d, doc, cit_off_lim):
@@ -11,40 +14,43 @@ def get_n_sort(query, d, doc, cit_off_lim):
     pos_front = dict()
     # Счётчик для учёта оффсета и лимита
     counter = 0
+    # Ссылка на каждую предыдущую позицию (чтобы не выдавались одинаковые)
+    pre_min_pos = False
 
     while True:
         # Сначала очищаем словарь текущих позиций
         pos_front.clear()
 
-        try:
-            for token in tokenise(query):
-                s = token.string
+        for t in tokenise(query):
+            for s in stemmer_by_token(t):
                 if s in d.keys():
 
                     if s in tracker.keys():
-                        # Интервал может быть подмножеством списка позиций; отсюда первый сценарий остановки цикла
-                        pos_front[d[s][doc][tracker[s]]] = s
+                        # У одного из токенов позиции могут закончиться раньше, но это *не* повод останавливать цикл:
+                        # просто делаем позицию недосягаемой, и сравнение всегда проходит в пользу оставшихся
+                        try:
+                            pos_front[d[s][doc][tracker[s]]] = s
+                        except IndexError:
+                            pos_front[Position(sys.maxsize, sys.maxsize, sys.maxsize)] = s
                     else:
                         # Первый проход
                         tracker[s] = 0
                         pos_front[d[s][doc][0]] = s
 
-        except IndexError:
+        # Второй сценарий остановки цикла - достижение лимита. Но поскольку просто игнорировать
+        # позиции до оффсета мы не можем (где-то накапливать их всё равно надо), учитываем и его
+        counter += 1
+        if counter > cit_off_lim[0] + cit_off_lim[1]:
             break
-
         else:
-            # Второй сценарий остановки цикла - достижение лимита. Но поскольку просто игнорировать
-            # позиции до оффсета мы не можем (где-то накапливать их всё равно надо), учитываем и его
-            counter += 1
-            if counter > cit_off_lim[0] + cit_off_lim[1]:
-                break
-            else:
-                # Надо узнать, позицию которого из токенов мы выдаём
-                min_pos = min(pos_front.keys(), key=lambda x: (x.line, x.start))
-                # Обновляем трекер *здесь*
-                tracker[pos_front[min_pos]] += 1
+            # Надо узнать, позицию которого из токенов мы выдаём
+            min_pos = min(pos_front.keys(), key=lambda x: (x.line, x.start))
+            # Обновляем трекер *здесь*
+            tracker[pos_front[min_pos]] += 1
 
-                if counter > cit_off_lim[0]:
+            if counter > cit_off_lim[0]:
+                if not pre_min_pos or (pre_min_pos and pre_min_pos != min_pos):
+                    pre_min_pos = min_pos
                     yield min_pos
 
 
@@ -52,30 +58,35 @@ def search(query, db_path, doc_off, doc_lim, cit_off_lim):
 
     doc_sets = list()
     final_docs = list()
+    positions = collections.OrderedDict()
 
     with shelve.open(db_path) as d:
-        # Собираем список множеств документов, содержащих токены
-        for token in tokenise(query):
-            if token.string in d.keys():
-                doc_sets += [set(doc for doc in d[token.string].keys())]
-            else:
-                doc_sets += [set()]
+        # Собираем список множеств документов, содержащих псевдоосновы
+        for t in tokenise(query):
+            for s in stemmer_by_token(t):
+                if s in d.keys():
+                    doc_sets += [set(doc for doc in d[s].keys())]
+                else:
+                    doc_sets += [set()]
+
+        # Исключение на случай, если задан пустой поисковый запрос
+        try:
+            req_docs = doc_sets[0]
+        except IndexError:
+            return positions
 
         # Пересекаем полученные множества и сортируем
-        req_docs = doc_sets[0]
         for doc_set in doc_sets:
             req_docs &= doc_set
         req_docs = sorted(req_docs)
 
         # Оффсет и лимит учитываем исключительно *в рамках полученного пересечения*,
         # а не всей коллекции проиндексированных документов: их перечень нам неизвестен
-        for i in range(doc_off, doc_off + doc_lim):
+        for i in range(doc_off, doc_off + doc_lim + 1):
             try:
                 final_docs += [req_docs[i]]
             except IndexError:
                 break
-
-        positions = collections.OrderedDict()
 
         # Сценарий, когда подходящих документов не нашлось
         if not final_docs:
