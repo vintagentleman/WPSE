@@ -18,8 +18,9 @@ class TestStemmer(unittest.TestCase):
         ana = stemmer.stemmer_by_token(Token('мама'))
         self.assertEqual(ana, ('мам',))
 
+        # Теперь здесь одна интерпретация вместо трёх
         ana = stemmer.stemmer_by_token(Token('мамами'))
-        self.assertEqual(ana, ('мам', 'мама', 'мамам',))
+        self.assertEqual(ana, ('мам',))
 
         ana = stemmer.stemmer_by_token(Token('мамань'))
         self.assertEqual(ana, ('маман',))

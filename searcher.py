@@ -82,7 +82,7 @@ def search(query, db_path, doc_off, doc_lim, cit_off_lim):
 
         # Оффсет и лимит учитываем исключительно *в рамках полученного пересечения*,
         # а не всей коллекции проиндексированных документов: их перечень нам неизвестен
-        for i in range(doc_off, doc_off + doc_lim):
+        for i in range(doc_off, doc_off + doc_lim + 1):
             try:
                 final_docs += [req_docs[i]]
             except IndexError:

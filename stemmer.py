@@ -4,7 +4,7 @@ from tokeniser import tokenise
 infl_glob = {
     # Источник: http://www.slovorod.ru/russian-inflexions.html
     'а', 'ал', 'ала', 'али', 'ам', 'ами', 'ас', 'ать', 'ах', 'ая',
-    'е', 'ее', 'ей', 'ем', 'еми', 'емя', 'ет', 'ете', 'еть', 'ех', 'ешь' 'ею', 'её',
+    'е', 'его', 'ее', 'ей', 'ем', 'еми', 'емя', 'ет', 'ете', 'еть', 'ех', 'ешь' 'ею', 'её',
     'ёт', 'ёте', 'ёх', 'ёшь',
     'и', 'ие', 'ий', 'им', 'ими', 'ит', 'ите', 'их', 'ишь', 'ию',
     'м', 'ми', 'мя',
@@ -16,6 +16,11 @@ infl_glob = {
     'ь',
     'ю', 'ют',
     'я', 'ял', 'яла', 'яли', 'ять', 'яя',
+}
+
+
+stem_glob = {
+    'мам', 'мы', 'рам',
 }
 
 
@@ -83,7 +88,12 @@ def stemmer_by_token(t):
     infl = sorted(set(s[-i:] for i in range(max_len + 1) if s[-i:] in infl_glob), key=lambda x: -len(x))
 
     if infl:
-        if len(infl) == 1 and infl[0] == s:
+        # Умный стемминг (с привлечением словаря)
+        stem = set(s[:-len(fl)] for fl in infl) & stem_glob
+
+        if stem:
+            return tuple(stem)
+        elif len(infl) == 1 and infl[0] == s:
             return s,
         else:
             return tuple(s[:-len(fl)] for fl in infl)
