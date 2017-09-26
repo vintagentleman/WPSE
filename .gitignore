@@ -1,0 +1,10 @@
+.idea/
+__pycache__/
+
+# Source text files
+*.txt
+
+# Search indices
+*.bak
+*.dat
+*.dir
