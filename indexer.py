@@ -1,8 +1,10 @@
 import shelve
+from functools import total_ordering
 from tokeniser import tokenise
 from stemmer import stemmer_by_token
 
 
+@total_ordering
 class Position(object):
 
     def __init__(self, line, start, end):
@@ -13,11 +15,15 @@ class Position(object):
     def __repr__(self):
         return 'line %s | column %s-%s' % (self.line, self.start, self.end)
 
+    # Для возможности хранить объекты как ключи словаря
     def __hash__(self):
         return hash((self.line, self.start))
 
     def __eq__(self, other):
         return (self.line, self.start) == (other.line, other.start)
+
+    def __lt__(self, other):
+        return (self.line, self.start) < (other.line, other.start)
 
 
 def index(file_path, db_path):

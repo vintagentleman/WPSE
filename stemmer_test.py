@@ -6,21 +6,12 @@ from tokeniser import Token
 class TestStemmer(unittest.TestCase):
 
     def test_normal(self):
-        ana = stemmer.stemmer('мама, мамами, мамань, а')
-
-        self.assertEqual(ana, {
-            'мама': [('мам', 'а')],
-            'мамами': [('мам', 'ами'), ('мама', 'ми'), ('мамам', 'и')],
-            'мамань': [('маман', 'ь')],
-            'а': [('а', '')],
-        })
 
         ana = stemmer.stemmer_by_token(Token('мама'))
         self.assertEqual(ana, ('мам',))
 
-        # Теперь здесь одна интерпретация вместо трёх
         ana = stemmer.stemmer_by_token(Token('мамами'))
-        self.assertEqual(ana, ('мам',))
+        self.assertEqual(ana, ('мам', 'мама', 'мамам'))
 
         ana = stemmer.stemmer_by_token(Token('мамань'))
         self.assertEqual(ana, ('маман',))
@@ -28,15 +19,19 @@ class TestStemmer(unittest.TestCase):
         ana = stemmer.stemmer_by_token(Token('а'))
         self.assertEqual(ana, ('а',))
 
-    def test_greedy(self):
-        ana = stemmer.greedy_stemmer('папа, папами, папань, и')
+    def test_latin(self):
 
-        self.assertEqual(ana, {
-            'папа': 'пап',
-            'папами': 'пап',
-            'папань': 'папан',
-            'и': 'и',
-        })
+        ana = stemmer.stemmer_by_token(Token('адвокатами'))
+        self.assertEqual(ana, ('адвокат',))
+
+        # 'адвокатов'?
+        ana = stemmer.stemmer_by_token(Token('адвокатов'))
+        self.assertEqual(ana, ('адвокат',))
+
+        ana = stemmer.stemmer_by_token(Token('адвокатову'))
+        self.assertEqual(ana, ('адвокатов',))
+
+    def test_greedy(self):
 
         ana = stemmer.greedy_stemmer_by_token(Token('папа'))
         self.assertEqual(ana, 'пап')
