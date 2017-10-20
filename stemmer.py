@@ -1,5 +1,5 @@
 import shelve
-from tokeniser import tokenise
+# from tokeniser import tokenise
 
 
 infl_glob = {
@@ -20,27 +20,48 @@ infl_glob = {
 }
 
 
-def stemmer_by_token(t, wikidata='latin'):
+def stemmer_by_token(t, wikidata='rus_nom'):
+    d = shelve.open(wikidata)
 
     s = t.string
-    d = shelve.open(wikidata)
-    max_len = max(len(fl) for fl in infl_glob)
-    infl = sorted(set(s[-i:] for i in range(max_len + 1) if s[-i:] in infl_glob), key=lambda x: -len(x))
+    stem = []
+    infl = None
 
-    if infl:
-        # Умный стемминг (с привлечением словаря)
-        stem = set(s[:-len(fl)] for fl in infl) & d.keys()
+    # Умный стемминг
+    '''
+    for i in range(3, 0, -1):
+        if s[:-i] in d.keys() and s[:-i]  and s[-i:] in d.keys():
+            for pair in d[s[:-i]]:
+                if pair in d[s[-i:]]:
+                    stem = s[:-i]
+                    break
+        stem.append(s[:-i])
+    '''
+    for i in range(3, 0, -1):
+        if s[:-i] and s[:-i] in d.keys() and s[-i:] in d.keys() and set(d[s[:-i]]) & set(d[s[-i:]]):
+            stem.append(s[:-i])
 
-        if stem:
-            return tuple(stem)
-        elif len(infl) == 1 and infl[0] == s:
+    if s in d.keys() and '' in d.keys() and set(d[s]) & set(d['']):
+        stem.append(s)
+
+    # Тупой стемминг
+    if not stem:
+        infl = sorted(set(s[-i:] for i in range(3, 0, -1) if s[-i:] in infl_glob), key=lambda x: -len(x))
+
+    if stem:
+        return tuple(sorted(stem))
+
+    elif infl is not None:
+        if len(infl) == 1 and infl[0] == s:
             return s,
         else:
             return tuple(s[:-len(fl)] for fl in infl)
+
     else:
         return s,
 
 
+'''
 def greedy_stemmer_by_token(t):
 
     max_len = max(len(fl) for fl in infl_glob)
@@ -116,3 +137,4 @@ def greedy_stemmer(s):
                 d[t] = t
 
     return d
+'''
