@@ -1,7 +1,7 @@
 import collections
 import os
 import unittest
-from indexer import index_stems_as_keys
+from indexer import index_analysed_tokens
 from searcher import tag
 
 
@@ -24,7 +24,7 @@ class TestSearch(unittest.TestCase):
 ''')
 
         for i in (1, 2):
-            index_stems_as_keys('test-%d.txt' % i, 'test')
+            index_analysed_tokens('test-%d.txt' % i, 'test')
 
     def tearDown(self):
 

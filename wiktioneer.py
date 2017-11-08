@@ -14,7 +14,9 @@ def scrape(database, limit, category):
 
     site = Site(('https', 'ru.wiktionary.org'))
     db = shelve.open(database)
+
     count = 0
+    templates = set()
 
     for page in site.categories[category]:
         # Разбиваем викитекст на строки
@@ -42,12 +44,15 @@ def scrape(database, limit, category):
                             name = item[item.index('основа'):item.index('=')].strip()
                             stem = remove_accent(item[item.index('=') + 1:]).strip()
                             if stem:
-                                print(stem, template, name)
+                                print(stem, template, name, page.name)
 
                                 # Типов бывает несколько
-                                data = db.setdefault(stem, [])
-                                data.append((template, name))
+                                data = db.setdefault(stem, {})
+                                data[(template, name)] = page.name
                                 db[stem] = data
+
+                                # Попутно собираем шаблоны
+                                templates.add(template)
 
                 # Конец раздела
                 elif line.startswith('='):
@@ -57,22 +62,21 @@ def scrape(database, limit, category):
         if count > limit:
             break
 
-    for stem in db.keys():
-        for pair in db[stem]:
-            page = site.pages['Шаблон:' + pair[0]]
-            lines = page.text().split(sep='\n')
+    for template in templates:
+        page = site.pages['Шаблон:' + template]
+        lines = page.text().split(sep='\n')
 
-            for line in lines:
-                if 'основа' in line:
-                    sub = line[line.index('основа'):]
-                    name = re.search('основа\d*(?=[|}])', sub).group()
-                    infl = remove_accent(sub[sub.rindex('}') + 1:]).strip()
+        for line in lines:
+            if 'основа' in line:
+                sub = line[line.index('основа'):]
+                name = re.search('основа\d*(?=[|}])', sub).group()
+                infl = remove_accent(sub[sub.rindex('}') + 1:]).strip()
 
-                    # print(infl, pair[0], name)
+                print(infl, template, name)
 
-                    data = db.setdefault(infl, [])
-                    data.append((pair[0], name))
-                    db[infl] = data
+                data = db.setdefault(infl, {})
+                data[(template, name)] = None
+                db[infl] = data
 
     db.close()
 

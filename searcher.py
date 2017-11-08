@@ -4,7 +4,7 @@ import sys
 import time
 from tokeniser import tokenise
 from indexer import Position
-from stemmer import stemmer_by_token
+from morphology import analyser
 
 
 def get_n_sort(query, d, doc, cit_off_lim):
@@ -22,7 +22,7 @@ def get_n_sort(query, d, doc, cit_off_lim):
         pos_front.clear()
 
         for t in tokenise(query):
-            for s in stemmer_by_token(t):
+            for s in analyser(t):
                 if s in d.keys():
 
                     if s in tracker.keys():
@@ -63,7 +63,7 @@ def search(query, db_path, doc_off, doc_lim, cit_off_lim):
     with shelve.open(db_path) as d:
         # Собираем список множеств документов, содержащих псевдоосновы
         for t in tokenise(query):
-            for s in stemmer_by_token(t):
+            for s in analyser(t):
                 if s in d.keys():
                     doc_sets += [set(doc for doc in d[s].keys())]
                 else:
