@@ -1,6 +1,6 @@
 from http.server import HTTPServer, CGIHTTPRequestHandler
 import cgi
-from searcher import tag
+from searcher import Searcher
 
 
 class WPSE(CGIHTTPRequestHandler):
@@ -105,7 +105,9 @@ class WPSE(CGIHTTPRequestHandler):
             offset = 1
 
         print(query, offset - 1, limit - 1, cit_off_lim)
-        concord = tag(query, 'turgenev', offset - 1, limit - 1, cit_off_lim)
+
+        se = Searcher('turgenev')
+        concord = se.tag(query, offset - 1, limit - 1, cit_off_lim)
 
         self._set_headers(query)
         self.wfile.write(('''

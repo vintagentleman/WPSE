@@ -1,7 +1,7 @@
 import shelve
 from functools import total_ordering
-from tokeniser import tokenise
-from morphology import analyser
+from tokeniser import Tokeniser
+from morphology import Analyser
 
 
 @total_ordering
@@ -26,20 +26,29 @@ class Position(object):
         return (self.line, self.start) < (other.line, other.start)
 
 
-def index_analysed_tokens(file_path, db_path):
+class Indexer(object):
 
-    with shelve.open(db_path) as d:
-        with open(file_path, mode='r', encoding='utf-8') as f:
-            for i, line in enumerate(f):
-                for token in tokenise(line):
-                    if token.kind in ('ALPHABETIC', 'NUMERIC'):
-                        for norm in analyser(token):
-                            p = Position(i, token.start, token.end)
+    def __init__(self):
+        self.morph = Analyser()
 
-                            data = d.setdefault(norm, {})
-                            data.setdefault(file_path, []).append(p)
-                            d[norm] = data
+    def index(self, db_path, file_path):
+        db = shelve.open(db_path)
+        file = open(file_path, mode='r', encoding='utf-8')
+
+        for i, line in enumerate(file):
+            for token in Tokeniser.tokenise(line):
+                if token.kind in ('ALPHABETIC', 'NUMERIC'):
+                    for norm in self.morph.analyse(token):
+                        p = Position(i, token.start, token.end)
+
+                        data = db.setdefault(norm, {})
+                        data.setdefault(file_path, []).append(p)
+                        db[norm] = data
+
+        db.close()
+        file.close()
 
 
 if __name__ == '__main__':
-    index_analysed_tokens('sample-3.txt', 'sample-test')
+    indexer = Indexer()
+    indexer.index('sample-test', 'sample-3.txt')

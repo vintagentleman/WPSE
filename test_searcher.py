@@ -1,8 +1,8 @@
 import collections
 import os
 import unittest
-from indexer import index_analysed_tokens
-from searcher import tag
+from indexer import Indexer
+from searcher import Searcher
 
 
 class TestSearch(unittest.TestCase):
@@ -23,8 +23,12 @@ class TestSearch(unittest.TestCase):
 Тест на неоднозначность интерпретаций #2: папами папам папа.
 ''')
 
+        indexer = Indexer()
+
         for i in (1, 2):
-            index_analysed_tokens('test-%d.txt' % i, 'test')
+            indexer.index('test', 'test-%d.txt' % i)
+
+        self.se = Searcher('test')
 
     def tearDown(self):
 
@@ -37,12 +41,12 @@ class TestSearch(unittest.TestCase):
     def test_empty(self):
         query = ''
 
-        self.assertEqual(tag(query, 'test', 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict())
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict())
 
     def test_infl(self):
         query = 'и о'
 
-        self.assertEqual(tag(query, 'test', 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
             ('test-1.txt', ['Тест на слова-флексии: а <b>и</b> <b>о</b>.']),
             ('test-2.txt', ['Тест на слова-флексии: <b>и</b> <b>о</b> у.']),
         ]))
@@ -50,14 +54,14 @@ class TestSearch(unittest.TestCase):
     def test_zero(self):
         query = 'пойман повешен'
 
-        self.assertEqual(tag(query, 'test', 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
             ('test-1.txt', ['Тест на нулевые флексии: <b>пойман</b> волочен <b>повешен</b> четвертован.']),
         ]))
 
     def test_plur(self):
         query = 'Наташа'
 
-        self.assertEqual(tag(query, 'test', 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
             ('test-2.txt',
              ['Тест на множественность форм одного слова: <b>Наташа</b> <b>Наташи</b> <b>Наташе</b> <b>Наташу</b>.']),
         ]))
@@ -65,14 +69,14 @@ class TestSearch(unittest.TestCase):
     def test_ambig_1(self):
         query = 'мамами'
 
-        self.assertEqual(tag(query, 'test', 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
             ('test-1.txt', ['Тест на неоднозначность интерпретаций #1: <b>мама</b> <b>мамам</b> <b>мамами</b>.']),
         ]))
 
     def test_ambig_2(self):
         query = 'папами'
 
-        self.assertEqual(tag(query, 'test', 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
             ('test-2.txt', ['Тест на неоднозначность интерпретаций #2: <b>папами</b> <b>папам</b> <b>папа</b>.']),
         ]))
 

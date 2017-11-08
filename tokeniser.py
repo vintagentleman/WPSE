@@ -15,23 +15,26 @@ class Token(object):
         return '(%s) \'%s\' [%d..%d]' % (self.kind, self.string, self.start, self.end)
 
 
-def tokenise(s):
+class Tokeniser(object):
 
-    token_specs = [
-        ('ALPHABETIC', r'\w+'),
-        ('NUMERIC', r'\d+([.,]\d*)?'),
-        ('PUNCTUATION', r'[%s]+' % punctuation),
-        ('WHITESPACE', r'[\n \t]+'),
-        ('UNKNOWN', r'.'),
-    ]
+    @staticmethod
+    def tokenise(s):
 
-    token_regex = '|'.join('(?P<%s>%s)' % pair for pair in token_specs)
+        token_specs = [
+            ('ALPHABETIC', r'\w+'),
+            ('NUMERIC', r'\d+([.,]\d*)?'),
+            ('PUNCTUATION', r'[%s]+' % punctuation),
+            ('WHITESPACE', r'[\n \t]+'),
+            ('UNKNOWN', r'.'),
+        ]
 
-    for match in re.finditer(token_regex, s):
-        kind = match.lastgroup
-        string = match.group(kind)
+        token_regex = '|'.join('(?P<%s>%s)' % pair for pair in token_specs)
 
-        if kind == 'WHITESPACE':
-            pass
-        else:
-            yield Token(string, match.start(), kind)
+        for match in re.finditer(token_regex, s):
+            kind = match.lastgroup
+            string = match.group(kind)
+
+            if kind == 'WHITESPACE':
+                pass
+            else:
+                yield Token(string, match.start(), kind)

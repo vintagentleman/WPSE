@@ -1,33 +1,36 @@
 import unittest
-import morphology
+from morphology import Analyser
 from tokeniser import Token
 
 
 class TestMorphology(unittest.TestCase):
 
+    def setUp(self):
+        self.morph = Analyser()
+
     def test_stemmer(self):
 
-        ana = morphology.analyser(Token('мама'))
+        ana = self.morph.analyse(Token('мама'))
         self.assertEqual(ana, ('мам',))
 
-        ana = morphology.analyser(Token('мамами'))
+        ana = self.morph.analyse(Token('мамами'))
         self.assertEqual(ana, ('мам', 'мама', 'мамам'))
 
-        ana = morphology.analyser(Token('мамань'))
+        ana = self.morph.analyse(Token('мамань'))
         self.assertEqual(ana, ('маман',))
 
-        ana = morphology.analyser(Token('абажурите'))
+        ana = self.morph.analyse(Token('абажурите'))
         self.assertEqual(ana, ('абажур', 'абажурит'))
 
     def test_lemmatiser(self):
 
-        ana = morphology.analyser(Token('а'))
+        ana = self.morph.analyse(Token('а'))
         self.assertEqual(ana, ('а',))
 
-        ana = morphology.analyser(Token('абазинцами'))
+        ana = self.morph.analyse(Token('абазинцами'))
         self.assertEqual(ana, ('абазинец',))
 
-        ana = morphology.analyser(Token('абажурчик'))
+        ana = self.morph.analyse(Token('абажурчик'))
         self.assertEqual(ana, ('абажурчик',))
 
 

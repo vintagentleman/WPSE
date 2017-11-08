@@ -3,83 +3,90 @@ import shelve
 from mwclient import Site
 
 
-def scrape(database, limit, category):
+class Wiktioneer(object):
 
-    def remove_accent(s):
+    def __init__(self, db, limit, category):
+        self.site = Site(('https', 'ru.wiktionary.org'))
+        self.db = shelve.open(db)
+        self.limit = limit
+        self.category = category
 
-        for c in 'ЀЍѐѝ́̀':
-            s = s.replace(c, '')
+    def __del__(self):
+        self.db.close()
 
-        return s
+    def scrape(self):
 
-    site = Site(('https', 'ru.wiktionary.org'))
-    db = shelve.open(database)
+        def remove_accent(s):
 
-    count = 0
-    templates = set()
+            for c in 'ЀЍѐѝ́̀':
+                s = s.replace(c, '')
 
-    for page in site.categories[category]:
-        # Разбиваем викитекст на строки
-        lines = page.text().split(sep='\n')
+            return s
 
-        # Ищем начало искомого раздела
-        try:
-            # Добавляем единицу, чтобы не приписывать всякий раз
-            i = lines.index('=== Морфологические и синтаксические свойства ===') + 1
-        except ValueError:
-            i = -1
+        count = 0
+        templates = set()
 
-        if i != -1:
-            for j, line in enumerate(lines[i:]):
-                # Ищем, где начинается шаблон
-                if line.startswith('{{') and not line.endswith('}}'):
-                    # Фигурные скобки и лишние пробелы (случается) убираем
-                    template = line[2:].strip()
-                    # Ищём конец текущего шаблона
-                    end = lines[i + j + 1:].index('}}')
+        for page in self.site.categories[self.category]:
+            # Разбиваем викитекст на строки
+            lines = page.text().split(sep='\n')
 
-                    for item in lines[i + j + 1:i + j + end]:
-                        if item[1:].startswith('основа'):
-                            # В основах избавляемся от лишних же пробелов и ударений
-                            name = item[item.index('основа'):item.index('=')].strip()
-                            stem = remove_accent(item[item.index('=') + 1:]).strip()
-                            if stem:
-                                print(stem, template, name, page.name)
+            # Ищем начало искомого раздела
+            try:
+                # Добавляем единицу, чтобы не приписывать всякий раз
+                i = lines.index('=== Морфологические и синтаксические свойства ===') + 1
+            except ValueError:
+                i = -1
 
-                                # Типов бывает несколько
-                                data = db.setdefault(stem, {})
-                                data[(template, name)] = page.name
-                                db[stem] = data
+            if i != -1:
+                for j, line in enumerate(lines[i:]):
+                    # Ищем, где начинается шаблон
+                    if line.startswith('{{') and not line.endswith('}}'):
+                        # Фигурные скобки и лишние пробелы (случается) убираем
+                        template = line[2:].strip()
+                        # Ищём конец текущего шаблона
+                        end = lines[i + j + 1:].index('}}')
 
-                                # Попутно собираем шаблоны
-                                templates.add(template)
+                        for item in lines[i + j + 1:i + j + end]:
+                            if item[1:].startswith('основа'):
+                                # В основах избавляемся от лишних же пробелов и ударений
+                                name = item[item.index('основа'):item.index('=')].strip()
+                                stem = remove_accent(item[item.index('=') + 1:]).strip()
+                                if stem:
+                                    print(stem, template, name, page.name)
 
-                # Конец раздела
-                elif line.startswith('='):
-                    break
+                                    # Типов бывает несколько
+                                    data = self.db.setdefault(stem, {})
+                                    data[(template, name)] = page.name
+                                    self.db[stem] = data
 
-        count += 1
-        if count > limit:
-            break
+                                    # Попутно собираем шаблоны
+                                    templates.add(template)
 
-    for template in templates:
-        page = site.pages['Шаблон:' + template]
-        lines = page.text().split(sep='\n')
+                    # Конец раздела
+                    elif line.startswith('='):
+                        break
 
-        for line in lines:
-            if 'основа' in line:
-                sub = line[line.index('основа'):]
-                name = re.search('основа\d*(?=[|}])', sub).group()
-                infl = remove_accent(sub[sub.rindex('}') + 1:]).strip()
+            count += 1
+            if count > self.limit:
+                break
 
-                print(infl, template, name)
+        for template in templates:
+            page = self.site.pages['Шаблон:' + template]
+            lines = page.text().split(sep='\n')
 
-                data = db.setdefault(infl, {})
-                data[(template, name)] = None
-                db[infl] = data
+            for line in lines:
+                if 'основа' in line:
+                    sub = line[line.index('основа'):]
+                    name = re.search('основа\d*(?=[|}])', sub).group()
+                    infl = remove_accent(sub[sub.rindex('}') + 1:]).strip()
 
-    db.close()
+                    print(infl, template, name)
+
+                    data = self.db.setdefault(infl, {})
+                    data[(template, name)] = None
+                    self.db[infl] = data
 
 
 if __name__ == '__main__':
-    scrape('rus_nom', 100, 'Русские_существительные')
+    w = Wiktioneer('rus_nom', 100, 'Русские_существительные')
+    w.scrape()
