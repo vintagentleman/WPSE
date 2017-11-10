@@ -69,12 +69,12 @@ class Searcher(object):
         positions = collections.OrderedDict()
 
         # Собираем список множеств документов, содержащих псевдоосновы
-        for t in Tokeniser.tokenise(query):
+        for i, t in enumerate(Tokeniser.tokenise(query)):
+            doc_sets += [set()]
+
             for s in self.morph.analyse(t):
                 if s in self.db:
-                    doc_sets += [set(doc for doc in self.db[s])]
-                else:
-                    doc_sets += [set()]
+                    doc_sets[i] |= set(doc for doc in self.db[s])
 
         # Исключение на случай, если задан пустой поисковый запрос
         try:

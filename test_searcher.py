@@ -1,4 +1,4 @@
-import collections
+from collections import OrderedDict
 import os
 import unittest
 from indexer import Indexer
@@ -41,12 +41,12 @@ class TestSearch(unittest.TestCase):
     def test_empty(self):
         query = ''
 
-        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict())
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), OrderedDict())
 
     def test_infl(self):
         query = 'и о'
 
-        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), OrderedDict([
             ('test-1.txt', ['Тест на слова-флексии: а <b>и</b> <b>о</b>.']),
             ('test-2.txt', ['Тест на слова-флексии: <b>и</b> <b>о</b> у.']),
         ]))
@@ -54,14 +54,14 @@ class TestSearch(unittest.TestCase):
     def test_zero(self):
         query = 'пойман повешен'
 
-        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), OrderedDict([
             ('test-1.txt', ['Тест на нулевые флексии: <b>пойман</b> волочен <b>повешен</b> четвертован.']),
         ]))
 
     def test_plur(self):
         query = 'Наташа'
 
-        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), OrderedDict([
             ('test-2.txt',
              ['Тест на множественность форм одного слова: <b>Наташа</b> <b>Наташи</b> <b>Наташе</b> <b>Наташу</b>.']),
         ]))
@@ -69,15 +69,25 @@ class TestSearch(unittest.TestCase):
     def test_ambig_1(self):
         query = 'мамами'
 
-        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), OrderedDict([
             ('test-1.txt', ['Тест на неоднозначность интерпретаций #1: <b>мама</b> <b>мамам</b> <b>мамами</b>.']),
         ]))
 
     def test_ambig_2(self):
         query = 'папами'
 
-        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), collections.OrderedDict([
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), OrderedDict([
             ('test-2.txt', ['Тест на неоднозначность интерпретаций #2: <b>папами</b> <b>папам</b> <b>папа</b>.']),
+        ]))
+
+    def test_combo(self):
+        query = 'одно слово'
+
+        self.assertEqual(self.se.tag(query, 0, 2, [(0, 9), (0, 9)]), OrderedDict([
+            ('test-2.txt', [
+                'Тест на <b>слова</b>-флексии: и о у.',
+                'Тест на множественность форм <b>одного</b> <b>слова</b>: Наташа Наташи Наташе Наташу.'
+            ]),
         ]))
 
 

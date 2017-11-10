@@ -3,7 +3,7 @@ import shelve
 
 class Analyser(object):
 
-    def __init__(self, wikidata='rus_nom'):
+    def __init__(self, wikidata='ru_noun'):
         self.d = shelve.open(wikidata)
 
         self.infl_glob = {

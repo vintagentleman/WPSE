@@ -51,4 +51,4 @@ class Indexer(object):
 
 if __name__ == '__main__':
     indexer = Indexer()
-    indexer.index('sample-test', 'sample-3.txt')
+    indexer.index('w&p_vol_1-2', 'volume-2.txt')

@@ -22,6 +22,9 @@ class TestMorphology(unittest.TestCase):
         ana = self.morph.analyse(Token('абажурите'))
         self.assertEqual(ana, ('абажур', 'абажурит'))
 
+        ana = self.morph.analyse(Token('мистическая'))
+        self.assertEqual(ana, ('мистическ', 'мистическа'))
+
     def test_lemmatiser(self):
 
         ana = self.morph.analyse(Token('а'))

@@ -74,7 +74,7 @@ class Wiktioneer(object):
             page = self.site.pages['Шаблон:' + template]
             lines = page.text().split(sep='\n')
 
-            for line in lines:
+            for i, line in enumerate(lines):
                 if 'основа' in line:
                     sub = line[line.index('основа'):]
                     name = re.search('основа\d*(?=[|}])', sub).group()
@@ -86,7 +86,13 @@ class Wiktioneer(object):
                     data[(template, name)] = None
                     self.db[infl] = data
 
+                    try:
+                        if 'основа' not in lines[i + 1]:
+                            break
+                    except IndexError:
+                        break
+
 
 if __name__ == '__main__':
-    w = Wiktioneer('rus_nom', 100, 'Русские_существительные')
+    w = Wiktioneer('ru_noun', 2000, 'Русские_существительные')
     w.scrape()
