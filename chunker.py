@@ -1,15 +1,47 @@
+from itertools import product
 from string_algorithms import aho_corrasick
 from tokeniser import Token
 
 
-MORPH = [
-    'а',
-    'ам',
-    'ами',
-    'и',
-    'мам',
-    'ми',
-]
+MD = {
+    'а': ['pr', 'r', 's', 'f'],
+    'ам': ['f'],
+    'ами': ['f'],
+    'и': ['r', 'i', 's', 'f'],
+    'мам': ['r'],
+    'ми': ['r', 'f'],
+}
+
+
+class FSM(object):
+
+    def __init__(self):
+        self.state = 'START'
+
+        self.network = {
+            'START': ['pr', 'r'],
+            'pr': ['pr', 'r'],
+            'r': ['i', 's', 'f', 'END'],
+            'i': ['pr', 'r'],
+            's': ['s', 'f', 'END'],
+            'f': ['ps', 'END'],
+            'ps': ['END'],
+        }
+
+    def run(self, typ_tup):
+        # Возвращаемся в начальное состояние
+        self.state = 'START'
+
+        for typ in typ_tup:
+            if typ in self.network[self.state]:
+                # На каждом шаге обновляем текущее состояние
+                self.state = typ
+            else:
+                raise RuntimeError('No transition between %s and %s.' % (self.state, typ))
+
+        # OK, если текущее состояние 1) достигнуто и 2) предтерминальное; в противном случае - исключение
+        if 'END' not in self.network[self.state]:
+            raise RuntimeError('No transition between %s and END.' % self.state)
 
 
 def morph_gener(d, pos=0, chain=[]):
@@ -36,9 +68,25 @@ def morph_gener(d, pos=0, chain=[]):
 def chunk(morph_dict, string):
     # Словарь вида {0: ['м', 'мам'], 3: ['а', 'ам', 'ами']}
     d = {}
+    # Автомат инициализируем в единственном экземпляре
+    fsm = FSM()
 
     for pair in aho_corrasick.find(morph_dict, string):
-        morph = Token(pair[1], pair[0])
+        morph = Token(pair[1], column=pair[0], kind=morph_dict[pair[1]])
         d.setdefault(morph.start, []).append(morph)
 
-    return morph_gener(d)
+    # Генератор возвращает списки возможных сегментаций
+    for morph_list in morph_gener(d):
+        # Для каждой сегментации строим декартово произведение типов её сегментов
+        for typ_tup in product(*(morph_dict[m] for m in morph_list)):
+            try:
+                fsm.run(typ_tup)
+            except RuntimeError:
+                continue
+            else:
+                # Дополнительно учитываем нулевую флексию
+                if fsm.state in ('r', 's'):
+                    yield dict(zip(morph_list + [''], list(typ_tup) + ['f']))
+                # Возвращаем словарь вида {морфема: тип (единственный)}
+                else:
+                    yield dict(zip(morph_list, list(typ_tup)))
