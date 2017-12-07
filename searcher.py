@@ -31,7 +31,7 @@ class Searcher(object):
             pos_front.clear()
 
             for t in Tokeniser.tokenise(query):
-                for s in self.morph.analyse(t):
+                for s in self.morph.lemmatiser(t):
                     if s in self.db:
 
                         if s in tracker:
@@ -72,7 +72,7 @@ class Searcher(object):
         for i, t in enumerate(Tokeniser.tokenise(query)):
             doc_sets += [set()]
 
-            for s in self.morph.analyse(t):
+            for s in self.morph.lemmatiser(t):
                 if s in self.db:
                     doc_sets[i] |= set(doc for doc in self.db[s])
 

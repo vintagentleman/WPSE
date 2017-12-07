@@ -38,7 +38,7 @@ class Indexer(object):
         for i, line in enumerate(file):
             for token in Tokeniser.tokenise(line):
                 if token.kind in ('ALPHABETIC', 'NUMERIC'):
-                    for norm in self.morph.analyse(token):
+                    for norm in self.morph.lemmatiser(token):
                         p = Position(i, token.start, token.end)
 
                         data = db.setdefault(norm, {})

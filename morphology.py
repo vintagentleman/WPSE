@@ -1,4 +1,5 @@
 import shelve
+import chunker
 
 
 class Analyser(object):
@@ -28,13 +29,10 @@ class Analyser(object):
     def __del__(self):
         self.d.close()
 
-    def analyse(self, t):
+    def lemmatiser(self, t):
         s = t.string
+        otpt = []
 
-        otpt_s = []
-        otpt_i = []
-
-        # Лемматизация
         for i in range(self.max_len, -1, -1):
             if i != 0:
                 stem = s[:-i]
@@ -54,23 +52,24 @@ class Analyser(object):
                         for pair in common:
                             lemma = self.d[stem][pair]
                             if lemma:
-                                otpt_s.append(lemma)
+                                otpt.append(lemma)
 
-        # Стемминг:
-        # выделяем множество конечных подстрок длины, не превосходящей максимальную;
+        if otpt:
+            return tuple(sorted(otpt))
+        else:
+            return self.stemmer(s)
+
+    def stemmer(self, s):
+        # Выделяем множество конечных подстрок длины, не превосходящей максимальную;
         # затем пересекаем его со словарём флексий и сортируем по возрастанию длины
-        if not otpt_s:
-            otpt_i = sorted(set(s[-i:] for i in range(self.max_len, 0, -1) if s[-i:] in self.infl_glob), key=lambda x: -len(x))
+        otpt = sorted(set(s[-i:] for i in range(self.max_len, 0, -1) if s[-i:] in self.infl_glob), key=lambda x: -len(x))
 
-        if otpt_s:
-            return tuple(sorted(otpt_s))
-
-        elif otpt_i:
+        if otpt:
             # Случай, когда основа совпала с флексией
-            if len(otpt_i) == 1 and otpt_i[0] == s:
+            if len(otpt) == 1 and otpt[0] == s:
                 return s,
             else:
-                return tuple(s[:-len(fl)] for fl in otpt_i)
+                return tuple(s[:-len(fl)] for fl in otpt)
 
         else:
             return s,
