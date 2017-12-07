@@ -3,16 +3,6 @@ from string_algorithms import aho_corrasick
 from tokeniser import Token
 
 
-MD = {
-    'а': ['pr', 'r', 's', 'f'],
-    'ам': ['f'],
-    'ами': ['f'],
-    'и': ['r', 'i', 's', 'f'],
-    'мам': ['r'],
-    'ми': ['r', 'f'],
-}
-
-
 class FSM(object):
 
     def __init__(self):
@@ -44,6 +34,45 @@ class FSM(object):
             raise RuntimeError('No transition between %s and END.' % self.state)
 
 
+class Chunker(object):
+
+    def __init__(self):
+        self.fsm = FSM()
+
+        self.md = {
+            'а': ['pr', 'r', 's', 'f'],
+            'ам': ['f'],
+            'ами': ['f'],
+            'и': ['r', 'i', 's', 'f'],
+            'мам': ['r'],
+            'ми': ['r', 'f'],
+        }
+
+    def chunk(self, string):
+        # Словарь вида {0: ['м', 'мам'], 3: ['а', 'ам', 'ами']}
+        d = {}
+
+        for pair in aho_corrasick.find(self.md, string):
+            morph = Token(pair[1], column=pair[0], kind=self.md[pair[1]])
+            d.setdefault(morph.start, []).append(morph)
+
+        # Генератор возвращает списки возможных сегментаций
+        for morph_list in morph_gener(d):
+            # Для каждой сегментации строим декартово произведение типов её сегментов
+            for typ_tup in product(*(self.md[m] for m in morph_list)):
+                try:
+                    self.fsm.run(typ_tup)
+                except RuntimeError:
+                    continue
+                else:
+                    # Дополнительно учитываем нулевую флексию
+                    if self.fsm.state in ('r', 's'):
+                        yield dict(zip(morph_list + [''], list(typ_tup) + ['f']))
+                    # Возвращаем словарь вида {морфема: тип (единственный)}
+                    else:
+                        yield dict(zip(morph_list, list(typ_tup)))
+
+
 def morph_gener(d, pos=0, chain=[]):
     if pos in d:
         # Начинаем либо продолжаем обход словаря
@@ -63,30 +92,3 @@ def morph_gener(d, pos=0, chain=[]):
 
     for morph in morph_list:
         yield from morph_gener(d, morph.end, chain + [morph.string])
-
-
-def chunk(morph_dict, string):
-    # Словарь вида {0: ['м', 'мам'], 3: ['а', 'ам', 'ами']}
-    d = {}
-    # Автомат инициализируем в единственном экземпляре
-    fsm = FSM()
-
-    for pair in aho_corrasick.find(morph_dict, string):
-        morph = Token(pair[1], column=pair[0], kind=morph_dict[pair[1]])
-        d.setdefault(morph.start, []).append(morph)
-
-    # Генератор возвращает списки возможных сегментаций
-    for morph_list in morph_gener(d):
-        # Для каждой сегментации строим декартово произведение типов её сегментов
-        for typ_tup in product(*(morph_dict[m] for m in morph_list)):
-            try:
-                fsm.run(typ_tup)
-            except RuntimeError:
-                continue
-            else:
-                # Дополнительно учитываем нулевую флексию
-                if fsm.state in ('r', 's'):
-                    yield dict(zip(morph_list + [''], list(typ_tup) + ['f']))
-                # Возвращаем словарь вида {морфема: тип (единственный)}
-                else:
-                    yield dict(zip(morph_list, list(typ_tup)))
