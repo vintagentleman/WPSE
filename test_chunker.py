@@ -13,6 +13,11 @@ class TestChunker(unittest.TestCase):
             {'а': 'r', 'ми': 'f'}
         ])
 
+        self.assertEqual(list(self.chunker.chunk('мама')), [
+            {'мам': 'r', 'а': 's', '': 'f'},
+            {'мам': 'r', 'а': 'f'},
+        ])
+
         self.assertEqual(list(self.chunker.chunk('мамами')), [
             {'мам': 'r', 'а': 's', 'ми': 'f'},
             {'мам': 'r', 'ами': 'f'}
@@ -31,6 +36,14 @@ class TestChunker(unittest.TestCase):
             {'мам': 'r', 'е': 's', '': 'f'},
             {'мам': 'r', 'е': 'f'}
         ])
+
+    def test_full_segmantation(self):
+        self.assertEqual(list(self.chunker.chunk('мама', full=True)), [
+            {'мам': 'r', 'а': 's', '': 'f'},
+            {'мам': 'r', 'а': 'f'},
+        ])
+
+        self.assertEqual(list(self.chunker.chunk('сумамед', full=True)), [])
 
 
 if __name__ == '__main__':

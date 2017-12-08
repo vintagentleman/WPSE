@@ -48,7 +48,7 @@ class Chunker(object):
             'ми': ['r', 'f'],
         }
 
-    def chunk(self, string):
+    def chunk(self, string, full=False):
         # Словарь вида {0: ['м', 'мам'], 3: ['а', 'ам', 'ами']}
         d = {}
 
@@ -57,7 +57,7 @@ class Chunker(object):
             d.setdefault(morph.start, []).append(morph)
 
         # Генератор возвращает списки возможных сегментаций
-        for morph_list in morph_gener(d):
+        for morph_list in morph_gener(d, len(string), full):
             # Для каждой сегментации строим декартово произведение типов её сегментов
             for typ_tup in product(*(self.md[m] for m in morph_list)):
                 try:
@@ -73,7 +73,7 @@ class Chunker(object):
                         yield dict(zip(morph_list, list(typ_tup)))
 
 
-def morph_gener(d, pos=0, chain=[]):
+def morph_gener(d, l, full, pos=0, chain=[]):
     if pos in d:
         # Начинаем либо продолжаем обход словаря
         morph_list = d[pos]
@@ -83,12 +83,16 @@ def morph_gener(d, pos=0, chain=[]):
         # Либо словоформа может начинаться не с 1-го сегмента, выделенного Ахо - Корасик
         # В таком случае берём сегмент, ближе всего отстоящий от начала
         if pos == 0:
-            morph_list = d[min(d)]
+            if full:
+                return
+            else:
+                morph_list = d[min(d)]
         # Либо мы дошли до последнего сегмента, с конечной позиции которого ничто не начинается
         # Тогда выдаём всю накопленную цепочку и заканчиваем обход данной ветки
         else:
-            yield chain
+            if (full and pos == l) or not full:
+                yield chain
             return
 
     for morph in morph_list:
-        yield from morph_gener(d, morph.end, chain + [morph.string])
+        yield from morph_gener(d, l, full, morph.end, chain + [morph.string])

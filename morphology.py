@@ -1,5 +1,5 @@
 import shelve
-import chunker
+from chunker import Chunker
 
 
 class Analyser(object):
@@ -25,6 +25,7 @@ class Analyser(object):
         }
 
         self.max_len = max(len(x) for x in self.d if any(self.d[x][i] is None for i in self.d[x]))
+        self.chunker = Chunker()
 
     def __del__(self):
         self.d.close()
@@ -57,19 +58,26 @@ class Analyser(object):
         if otpt:
             return tuple(sorted(otpt))
         else:
+            # Фолбэк, если лемматизация не прошла
             return self.stemmer(s)
 
     def stemmer(self, s):
-        # Выделяем множество конечных подстрок длины, не превосходящей максимальную;
-        # затем пересекаем его со словарём флексий и сортируем по возрастанию длины
-        otpt = sorted(set(s[-i:] for i in range(self.max_len, 0, -1) if s[-i:] in self.infl_glob), key=lambda x: -len(x))
+        otpt = tuple(''.join(m for m in segm if segm[m] != 'f') for segm in self.chunker.chunk(s, full=True))
 
         if otpt:
+            return otpt
+        else:
+            # Фолбэк: выделяем множество конечных подстрок длины, не превосходящей максимальную;
+            # затем пересекаем его со словарём флексий и сортируем по возрастанию длины
+            infl = sorted(set(s[-i:] for i in range(self.max_len, 0, -1) if s[-i:] in self.infl_glob), key=lambda x: -len(x))
+
+        if infl:
             # Случай, когда основа совпала с флексией
-            if len(otpt) == 1 and otpt[0] == s:
+            if len(infl) == 1 and infl[0] == s:
                 return s,
             else:
-                return tuple(s[:-len(fl)] for fl in otpt)
+                return tuple(s[:-len(fl)] for fl in infl)
 
+        # Всем фолбэкам фолбэк
         else:
             return s,
