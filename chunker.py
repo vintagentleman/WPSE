@@ -5,33 +5,39 @@ from tokeniser import Token
 
 class FSM(object):
 
+    network = {
+        'START': ['pr', 'r'],
+        'pr': ['pr', 'r'],
+        'r': ['i', 's', 'f', 'END'],
+        'i': ['pr', 'r'],
+        's': ['s', 'f', 'END'],
+        'f': ['ps', 'END'],
+        'ps': ['END'],
+    }
+
+    marked_arcs = {
+        ('r', 'END'): ('', 'f'),
+        ('s', 'END'): ('', 'f'),
+    }
+
     def __init__(self):
         self.state = 'START'
+        self.mark = None
 
-        self.network = {
-            'START': ['pr', 'r'],
-            'pr': ['pr', 'r'],
-            'r': ['i', 's', 'f', 'END'],
-            'i': ['pr', 'r'],
-            's': ['s', 'f', 'END'],
-            'f': ['ps', 'END'],
-            'ps': ['END'],
-        }
+    def run(self, typ):
+        arc = (self.state, typ)
 
-    def run(self, typ_tup):
-        # Возвращаемся в начальное состояние
-        self.state = 'START'
+        # На каждом шаге обновляем текущее состояние
+        if typ in self.network[self.state]:
+            self.state = typ
+        else:
+            raise RuntimeError('No transition between %s and %s.' % arc)
 
-        for typ in typ_tup:
-            if typ in self.network[self.state]:
-                # На каждом шаге обновляем текущее состояние
-                self.state = typ
-            else:
-                raise RuntimeError('No transition between %s and %s.' % (self.state, typ))
-
-        # OK, если текущее состояние 1) достигнуто и 2) предтерминальное; в противном случае - исключение
-        if 'END' not in self.network[self.state]:
-            raise RuntimeError('No transition between %s and END.' % self.state)
+        # Метки размеченных дуг фиксируем
+        if arc in self.marked_arcs:
+            self.mark = self.marked_arcs[arc]
+        else:
+            self.mark = None
 
 
 class Chunker(object):
@@ -60,17 +66,21 @@ class Chunker(object):
         for morph_list in morph_gener(d, len(string), full):
             # Для каждой сегментации строим декартово произведение типов её сегментов
             for typ_tup in product(*(self.md[m] for m in morph_list)):
+                type_list = list(typ_tup)
+                self.fsm.state = 'START'
+
                 try:
-                    self.fsm.run(typ_tup)
+                    for i, typ in enumerate(list(typ_tup) + ['END']):
+                        self.fsm.run(typ)
+
+                        if self.fsm.mark is not None:
+                            morph_list.insert(i, self.fsm.mark[0])
+                            type_list.insert(i, self.fsm.mark[1])
                 except RuntimeError:
                     continue
                 else:
-                    # Дополнительно учитываем нулевую флексию
-                    if self.fsm.state in ('r', 's'):
-                        yield dict(zip(morph_list + [''], list(typ_tup) + ['f']))
                     # Возвращаем словарь вида {морфема: тип (единственный)}
-                    else:
-                        yield dict(zip(morph_list, list(typ_tup)))
+                    yield dict(zip(morph_list, type_list))
 
 
 def morph_gener(d, l, full, pos=0, chain=[]):
