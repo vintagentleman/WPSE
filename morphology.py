@@ -62,12 +62,13 @@ class Analyser(object):
             return self.stemmer(s)
 
     def stemmer(self, s):
-        otpt = tuple(''.join(m for m in segm if segm[m] != 'f') for segm in self.chunker.chunk(s, full=True))
+        otpt = set(''.join(m for m in segm if not segm[m].startswith(('f', 's_Fl'))) for segm in self.chunker.chunk(s, full=True))
 
         if otpt:
-            return otpt
+            # Стемминг с морфоанализом. Если не прошёл и он - фолбэк к отсечению финали
+            return tuple(sorted(otpt))
         else:
-            # Фолбэк: выделяем множество конечных подстрок длины, не превосходящей максимальную;
+            # Выделяем множество конечных подстрок длины, не превосходящей максимальную;
             # затем пересекаем его со словарём флексий и сортируем по возрастанию длины
             infl = sorted(set(s[-i:] for i in range(self.max_len, 0, -1) if s[-i:] in self.infl_glob), key=lambda x: -len(x))
 

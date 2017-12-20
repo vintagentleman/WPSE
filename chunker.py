@@ -1,3 +1,4 @@
+import re
 from itertools import product
 from string_algorithms import aho_corrasick
 from tokeniser import Token
@@ -6,18 +7,44 @@ from tokeniser import Token
 class FSM(object):
 
     network = {
-        'START': ['pr', 'r'],
-        'pr': ['pr', 'r'],
-        'r': ['i', 's', 'f', 'END'],
-        'i': ['pr', 'r'],
-        's': ['s', 'f', 'END'],
-        'f': ['ps', 'END'],
-        'ps': ['END'],
+        'START': {'pr', 'r_Nn', 'r_Aj', 'r_Vb', 'r_Zz'},
+        'pr': {'pr', 'r_Nn', 'r_Aj', 'r_Vb', 'r_Zz'},
+
+        'r_Nn': {'i', 's_Dr_Nn', 's_Fl_Nn', 's_Dr_Aj', 'f_Nn', 'END'},
+        'r_Aj': {'i', 's_Dr_Aj', 's_Fl_Aj', 's_Dr_Av', 'f_Aj', 'END'},
+        'r_Vb': {'i', 's_Dr_Vb', 's_Fl_Vb', 'f_Vb', 'END'},
+        'r_Zz': {'END'},
+
+        'i': {'pr', 'r_Nn', 'r_Aj', 'r_Vb', 'r_Zz'},
+
+        's_Dr_Nn': {'s_Dr_Nn', 's_Fl_Nn', 'f_Nn', 'END'},
+        's_Dr_Aj': {'s_Dr_Aj', 's_Fl_Aj', 's_Dr_Av', 'f_Aj', 'END'},
+        's_Dr_Vb': {'s_Dr_Vb', 's_Fl_Vb', 'f_Vb', 'f_Aj', 'END'},
+        's_Dr_Av': {'s_Dr_Av', 'END'},
+
+        's_Fl_Nn': {'s_Fl_Nn', 'f_Nn', 'END'},
+        's_Fl_Aj': {'s_Fl_Aj', 'f_Aj', 'END'},
+        's_Fl_Vb': {'s_Fl_Vb', 'f_Vb', 'f_Aj', 'END'},
+
+        'f_Nn': {'END'},
+        'f_Aj': {'ps', 'END'},
+        'f_Vb': {'ps', 'END'},
+
+        'ps': {'END'},
     }
 
     marked_arcs = {
-        ('r', 'END'): ('', 'f'),
-        ('s', 'END'): ('', 'f'),
+        ('r_Nn', 'END'): ('', 'f_Nn'),
+        ('s_Dr_Nn', 'END'): ('', 'f_Nn'),
+        ('s_Fl_Nn', 'END'): ('', 'f_Nn'),
+
+        ('r_Aj', 'END'): ('', 'f_Aj'),
+        ('s_Dr_Aj', 'END'): ('', 'f_Aj'),
+        ('s_Fl_Aj', 'END'): ('', 'f_Aj'),
+
+        ('r_Vb', 'END'): ('', 's_Fl_Vb'),
+        ('s_Dr_Vb', 'END'): ('', 's_Fl_Vb'),
+        ('s_Fl_Vb', 'END'): ('', 'f_Vb'),
     }
 
     def __init__(self):
@@ -34,10 +61,7 @@ class FSM(object):
             raise RuntimeError('No transition between %s and %s.' % arc)
 
         # Метки размеченных дуг фиксируем
-        if arc in self.marked_arcs:
-            self.mark = self.marked_arcs[arc]
-        else:
-            self.mark = None
+        self.mark = self.marked_arcs.get(arc)
 
 
 class Chunker(object):
@@ -46,24 +70,35 @@ class Chunker(object):
         self.fsm = FSM()
 
         self.md = {
-            'а': ['pr', 'r', 's', 'f'],
-            'ам': ['f'],
-            'ами': ['f'],
-            'и': ['r', 'i', 's', 'f'],
-            'мам': ['r'],
-            'ми': ['r', 'f'],
+            'а': ['pr', 'r_Zz', 's_Dr_Vb', 's_Dr_Av', 'f_Nn', 'f_Vb'],
+            'ам': ['f_Nn'],
+            'ами': ['f_Nn'],
+            'вш': ['r_Nn', 's_Fl_Vb'],
+            'е': ['i', 's_Dr_Vb', 'f_Nn'],
+            'и': ['r_Zz', 'i', 's_Dr_Vb', 's_Dr_Av', 'f_Nn', 'f_Vb'],
+            'ий': ['f_Aj'],
+            'мам': ['r_Nn'],
+            'ми': ['r_Nn', 'f_Nn'],
+            'на': ['pr', 'r_Zz'],
+            'по': ['pr', 'r_Zz'],
+            'ск': ['s_Dr_Aj', 's_Dr_Av'],
+            'смотр': ['r_Nn', 'r_Vb'],
+            'ся': ['ps'],
+            'ть': ['f_Vb'],
         }
 
-    def chunk(self, string, full=False):
+    def chunk(self, s, full=False):
         # Словарь вида {0: ['м', 'мам'], 3: ['а', 'ам', 'ами']}
         d = {}
+        # Удаляем из строки пунктуацию (иначе сегментация разрушится)
+        s = re.sub('[^\w]', '', s)
 
-        for pair in aho_corrasick.find(self.md, string):
+        for pair in aho_corrasick.find(self.md, s):
             morph = Token(pair[1], column=pair[0], kind=self.md[pair[1]])
             d.setdefault(morph.start, []).append(morph)
 
         # Генератор возвращает списки возможных сегментаций
-        for morph_list in morph_gener(d, len(string), full):
+        for morph_list in morph_gener(d, len(s), full):
             # Для каждой сегментации строим декартово произведение типов её сегментов
             for typ_tup in product(*(self.md[m] for m in morph_list)):
                 type_list = list(typ_tup)

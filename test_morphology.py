@@ -20,10 +20,13 @@ class TestMorphology(unittest.TestCase):
 
     def test_stemmer(self):
         ana = self.morph.stemmer('мама')
-        self.assertEqual(ana, ('мама', 'мам'))
+        self.assertEqual(ana, ('мам',))
 
         ana = self.morph.stemmer('мамами')
-        self.assertEqual(ana, ('мама', 'мам'))
+        self.assertEqual(ana, ('мам',))
+
+        ana = self.morph.stemmer('понасмотревшийся')
+        self.assertEqual(ana, ('понасмотреся',))
 
     def test_stem_fallback(self):
         ana = self.morph.stemmer('папань')
