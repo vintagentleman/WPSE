@@ -9,6 +9,33 @@ se = Searcher('w&p_vol_1-2')
 
 class WPSE(CGIHTTPRequestHandler):
 
+    @staticmethod
+    def cit_pager(off_lim, lim_cit, lim, act):
+
+        for i in range(lim):
+            if act == 'prev_cit_%s' % i:
+                new_off = max(0, off_lim[i][0] - off_lim[i][1] - 1)
+                off_lim[i] = (new_off, int(lim_cit[i]) - 1)
+            elif act == 'home_cit_%s' % i:
+                off_lim[i] = (0, int(lim_cit[i]) - 1)
+            elif act == 'next_cit_%s' % i:
+                new_off = off_lim[i][0] + off_lim[i][1] + 1
+                off_lim[i] = (new_off, int(lim_cit[i]) - 1)
+
+        return off_lim
+
+    @staticmethod
+    def doc_pager(off, lim, act):
+
+        if act == 'prev_doc':
+            off -= lim
+        elif act == 'home_doc':
+            off = 1
+        elif act == 'next_doc':
+            off += lim
+
+        return off
+
     def _set_headers(self, query='Start Page'):
         self.send_response(200)
         self.send_header('content-type', 'text/html')
@@ -24,11 +51,11 @@ class WPSE(CGIHTTPRequestHandler):
                 font-family: Georgia, serif;
                 margin: 20px;
             }
-            
+
             h1 {
                 text-align: center;
             }
-            
+
             .center {
                 text-align: center;
                 margin: auto;
@@ -36,7 +63,7 @@ class WPSE(CGIHTTPRequestHandler):
             }
         </style>
     </head>
-        ''' % query).encode('utf-8'))
+''' % query).encode('utf-8'))
 
     def do_GET(self):
         self._set_headers()
@@ -62,51 +89,47 @@ class WPSE(CGIHTTPRequestHandler):
             environ={'REQUEST_METHOD': 'POST', 'CONTENT_TYPE': self.headers['content-type']}
         )
 
+        # Записываем запрос в переменную (в начале работы это `Start Page`)
         query = form.getfirst('query')
+        # Список кортежей вида (оффсет по цитатам, лимит по цитатам)
         cit_off_lim = []
 
+        # Если запрос не первый, то извлекаем соответствующие цифры из уже имеющейся формы
         if 'page_doc' in form.keys():
+            # Оффсет и лимит по документам берём прямолинейно
             offset = int(form.getfirst('page_doc'))
             limit = int(form.getfirst('limit_doc'))
 
+            # Оффсеты и лимиты по цитатам извлекаем для каждого документа по отдельности
             for i in range(limit):
                 if form.getfirst('limit_cit_%s' % i):
                     limit_cit_i = int(form.getfirst('limit_cit_%s' % i))
                     offset_cit_i = (int(form.getfirst('page_cit_%s' % i)) - 1) * limit_cit_i + 1
                     cit_off_lim += [(offset_cit_i - 1, limit_cit_i - 1)]
+                # Больше документов, чем в интервале от оффсета до оффсета плюс лимита, нам не нужно
                 else:
                     break
 
+            # Если же документов набралось меньше, то заполняем остаток значениями по умолчанию
             if len(cit_off_lim) < limit:
                 for i in range(len(cit_off_lim) + 1, limit + 1):
                     cit_off_lim += [(0, 9)]
 
+        # Если запрос первый, то присваиваем значения по умолчанию
         else:
             offset = 1
             limit = 2
             cit_off_lim = [(0, 9), (0, 9)]
 
-        for i in range(limit):
-            if form.getfirst('action') == 'prev_cit_%s' % i:
-                new_off = max(0, cit_off_lim[i][0] - cit_off_lim[i][1] - 1)
-                cit_off_lim[i] = (new_off, int(form.getfirst('limit_cit_%s' % i)) - 1)
-            elif form.getfirst('action') == 'home_cit_%s' % i:
-                cit_off_lim[i] = (0, int(form.getfirst('limit_cit_%s' % i)) - 1)
-            elif form.getfirst('action') == 'next_cit_%s' % i:
-                new_off = cit_off_lim[i][0] + cit_off_lim[i][1] + 1
-                cit_off_lim[i] = (new_off, int(form.getfirst('limit_cit_%s' % i)) - 1)
-
-        if form.getfirst('action') == 'prev_doc':
-            offset -= limit
-        elif form.getfirst('action') == 'home_doc':
-            offset = 1
-        elif form.getfirst('action') == 'next_doc':
-            offset += limit
-
+        # Если делаем новый запрос, то оффсеты сбрасываем
         if form.getfirst('action') == 'submit':
             for i in range(limit):
                 cit_off_lim[i] = (0, cit_off_lim[i][1])
             offset = 1
+        # Если же пользуемся листалкой, то обновляем
+        else:
+            cit_off_lim = self.cit_pager(cit_off_lim, [form.getfirst('limit_cit_%s' % i) for i in range(limit)], limit, form.getfirst('action'))
+            offset = self.doc_pager(offset, limit, form.getfirst('action'))
 
         print(query, offset - 1, limit - 1, cit_off_lim)
         concord = se.tag(query, offset - 1, limit - 1, cit_off_lim)
@@ -126,13 +149,16 @@ class WPSE(CGIHTTPRequestHandler):
         for i, file in enumerate(concord.keys()):
             self.wfile.write(('''
                 <li>
-                    <button type="submit" name="action" value="prev_cit_%s">&lt;</button>
-                    <button type="submit" name="action" value="home_cit_%s">•</button>
-                    <button type="submit" name="action" value="next_cit_%s">&gt;</button>
+                    <b>%s</b>
                     <br>
-            ''' % (i, i, i)).encode('utf-8'))
+                    <i>Navigation:</i>
+                    <button type="submit" name="action" value="prev_cit_%s">&lt;</button>
+                    <button type="submit" name="action" value="home_cit_%s">Home</button>
+                    <button type="submit" name="action" value="next_cit_%s">&gt;</button>
+                    ''' % (file, i, i, i)).encode('utf-8'))
 
-            self.wfile.write(('''
+            self.wfile.write(('''\
+                    <i>Results per page:</i>
                     <input type="text" name="limit_cit_%s" value="%s" size="3" style="text-align: center;">''' %
                               (i, str(cit_off_lim[i][1] + 1))).encode('utf-8'))
             self.wfile.write(('''
@@ -147,13 +173,19 @@ class WPSE(CGIHTTPRequestHandler):
 
             self.wfile.write('''
                     </ol>
-                </li>'''.encode('utf-8'))
+                </li>
+                '''.encode('utf-8'))
 
         self.wfile.write(('''
+                <br>
                 <div class="center">
+                    <i>Document navigation:</i>
+                    <br>
                     <button type="submit" name="action" value="prev_doc">&lt;</button>
-                    <button type="submit" name="action" value="home_doc">•••</button>
+                    <button type="submit" name="action" value="home_doc">Home</button>
                     <button type="submit" name="action" value="next_doc">&gt;</button>
+                    <br>
+                    <i>Documents per page:</i>
                     <br>
                     <input type="text" name="limit_doc" value="%s" size="3" style="text-align: center;">
                     <input type="hidden" name="page_doc" value="%s">

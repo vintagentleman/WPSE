@@ -94,5 +94,5 @@ class Wiktioneer(object):
 
 
 if __name__ == '__main__':
-    w = Wiktioneer('ru_noun', 2000, 'Русские_существительные')
+    w = Wiktioneer('ru_noun', 5000, 'Русские_существительные')
     w.scrape()

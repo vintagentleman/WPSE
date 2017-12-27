@@ -34,7 +34,5 @@ class Tokeniser(object):
             kind = match.lastgroup
             string = match.group(kind)
 
-            if kind == 'WHITESPACE':
-                pass
-            else:
+            if kind in ('ALPHABETIC', 'NUMERIC'):
                 yield Token(string, match.start(), kind)
