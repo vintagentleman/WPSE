@@ -21,11 +21,11 @@ class Tokeniser(object):
     def tokenise(s):
 
         token_specs = [
-            ('ALPHABETIC', r'\w+'),
             ('NUMERIC', r'\d+([.,]\d*)?'),
-            ('PUNCTUATION', r'[%s]+' % punctuation),
-            ('WHITESPACE', r'[\n \t]+'),
-            ('UNKNOWN', r'.'),
+            ('ALPHABETIC', r'\w+'),
+            ('PUNCTUATION', r'[^\w\s]+'),
+            ('WHITESPACE', r'[\s]+'),
+            ('UNKNOWN', r'.+'),
         ]
 
         token_regex = '|'.join('(?P<%s>%s)' % pair for pair in token_specs)
