@@ -1,5 +1,6 @@
 import re
 from itertools import product
+from collections import defaultdict
 from string_algorithms import aho_corrasick
 from tokeniser import Token
 
@@ -88,17 +89,24 @@ class Chunker(object):
         }
 
     def chunk(self, s, full=False):
-        # Словарь вида {0: ['м', 'мам'], 3: ['а', 'ам', 'ами']}
-        d = {}
-        # Удаляем из строки пунктуацию (иначе сегментация разрушится)
+        """
+        Порождает сегментации анализируемой словоформы на морфемы на основе конечного автомата.
+        Список морфем прописан вручную в атрибуте md. Конечный автомат проверяет сочетаемость их типов.
+
+        :param s: строковое представление токена, подлежащего сегментации
+        :param full: режим (необходимо или нет полное покрытие словоформы сегментацией)
+        :return: генератор словарей вида {морфема: тип (единственный)}
+        """
+
+        d = defaultdict(list)
         s = re.sub('[^\w]', '', s)
 
         for pair in aho_corrasick.find(self.md, s):
             morph = Token(pair[1], column=pair[0], kind=self.md[pair[1]])
-            d.setdefault(morph.start, []).append(morph)
+            d[morph.start].append(morph)
 
         # Генератор возвращает списки возможных сегментаций
-        for morph_list in morph_gener(d, len(s), full):
+        for morph_list in morph_gener(d, len(s), full, 0, []):
             # Для каждой сегментации строим декартово произведение типов её сегментов
             for typ_tup in product(*(self.md[m] for m in morph_list)):
                 type_list = list(typ_tup)
@@ -108,17 +116,29 @@ class Chunker(object):
                     for i, typ in enumerate(list(typ_tup) + ['END']):
                         self.fsm.run(typ)
 
+                        # Проверяем, не размечена ли пройденная дуга
                         if self.fsm.mark is not None:
                             morph_list.insert(i, self.fsm.mark[0])
                             type_list.insert(i, self.fsm.mark[1])
                 except RuntimeError:
                     continue
                 else:
-                    # Возвращаем словарь вида {морфема: тип (единственный)}
                     yield dict(zip(morph_list, type_list))
 
 
-def morph_gener(d, l, full, pos=0, chain=[]):
+def morph_gener(d, l, full, pos, chain):
+    """
+    Строит сегментации на основе списка морфем, выделенных алгоритмом Ахо - Корасик.
+    Фактически возвращает пути по связным компонентам графа, построенного на множестве морфем.
+
+    :param d: словарь вида {0: ['м', 'мам'], 3: ['а', 'ам', 'ами'], ...}
+    :param l: длина разбираемой словоформы
+    :param full: режим (наследуется из метода chunk)
+    :param pos: индекс текущей морфемы
+    :param chain: накопленная цепочка морфем
+    :return: генератор успешно построенных сегментаций
+    """
+
     if pos in d:
         # Начинаем либо продолжаем обход словаря
         morph_list = d[pos]

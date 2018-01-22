@@ -10,22 +10,38 @@ se = Searcher('w&p_vol_1-2')
 class WPSE(CGIHTTPRequestHandler):
 
     @staticmethod
-    def cit_pager(off_lim, lim_cit, lim, act):
+    def cit_pager(cit_off_lim, lim_cit, act):
+        """
+        Листает цитаты.
 
-        for i in range(lim):
+        :param cit_off_lim: список кортежей вида (оффсет по цитатам, лимит по цитатам) для каждого документа
+        :param lim_cit: заданные либо извлечённые из формы лимиты по цитатам
+        :param act: значение, извлечённое из формы
+        :return: новый список кортежей (с обновлённым оффетом для одного из документов)
+        """
+
+        for i in range(len(cit_off_lim)):
             if act == 'prev_cit_%s' % i:
-                new_off = max(0, off_lim[i][0] - off_lim[i][1] - 1)
-                off_lim[i] = (new_off, int(lim_cit[i]) - 1)
+                new_off = max(0, cit_off_lim[i][0] - cit_off_lim[i][1] - 1)
+                cit_off_lim[i] = (new_off, int(lim_cit[i]) - 1)
             elif act == 'home_cit_%s' % i:
-                off_lim[i] = (0, int(lim_cit[i]) - 1)
+                cit_off_lim[i] = (0, int(lim_cit[i]) - 1)
             elif act == 'next_cit_%s' % i:
-                new_off = off_lim[i][0] + off_lim[i][1] + 1
-                off_lim[i] = (new_off, int(lim_cit[i]) - 1)
+                new_off = cit_off_lim[i][0] + cit_off_lim[i][1] + 1
+                cit_off_lim[i] = (new_off, int(lim_cit[i]) - 1)
 
-        return off_lim
+        return cit_off_lim
 
     @staticmethod
     def doc_pager(off, lim, act):
+        """
+        Листает документы.
+
+        :param off: оффсет по документам
+        :param lim: лимит по документам
+        :param act: значение из формы
+        :return: новый оффсет
+        """
 
         if act == 'prev_doc':
             off -= lim
@@ -128,7 +144,7 @@ class WPSE(CGIHTTPRequestHandler):
             offset = 1
         # Если же пользуемся листалкой, то обновляем
         else:
-            cit_off_lim = self.cit_pager(cit_off_lim, [form.getfirst('limit_cit_%s' % i) for i in range(limit)], limit, form.getfirst('action'))
+            cit_off_lim = self.cit_pager(cit_off_lim, [form.getfirst('limit_cit_%s' % i) for i in range(limit)], form.getfirst('action'))
             offset = self.doc_pager(offset, limit, form.getfirst('action'))
 
         print(query, offset - 1, limit - 1, cit_off_lim)

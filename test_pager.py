@@ -15,10 +15,10 @@ class TestPager(unittest.TestCase):
 
     def test_cit_pager(self):
         # Имеем в виду, что список в ходе работы мутирует
-        self.assertEqual(server.WPSE.cit_pager(self.cit_off_lim, self.lim_cit, self.limit, 'prev_cit_0'), [(10, 9), (0, 9)])
-        self.assertEqual(server.WPSE.cit_pager(self.cit_off_lim, self.lim_cit, self.limit, 'next_cit_1'), [(10, 9), (10, 9)])
-        self.assertEqual(server.WPSE.cit_pager(self.cit_off_lim, self.lim_cit, self.limit, 'prev_cit_1'), [(10, 9), (0, 9)])
-        self.assertEqual(server.WPSE.cit_pager(self.cit_off_lim, self.lim_cit, self.limit, 'home_cit_0'), [(0, 9), (0, 9)])
+        self.assertEqual(server.WPSE.cit_pager(self.cit_off_lim, self.lim_cit, 'prev_cit_0'), [(10, 9), (0, 9)])
+        self.assertEqual(server.WPSE.cit_pager(self.cit_off_lim, self.lim_cit, 'next_cit_1'), [(10, 9), (10, 9)])
+        self.assertEqual(server.WPSE.cit_pager(self.cit_off_lim, self.lim_cit, 'prev_cit_1'), [(10, 9), (0, 9)])
+        self.assertEqual(server.WPSE.cit_pager(self.cit_off_lim, self.lim_cit, 'home_cit_0'), [(0, 9), (0, 9)])
 
     def test_doc_pager(self):
         # С другой стороны, числа немутабельны - новый оффсет просто возвращается

@@ -27,6 +27,23 @@ class Position(object):
 
 
 class Indexer(object):
+    """
+    Создаёт поисковый индекс словоформ вида {
+        'словоформа_1': {
+            'файл_I.txt': [позиция_1a, позиция_1b],
+            'файл_II.txt': [позиция_1c],
+        },
+        'словоформа_2': {
+            'файл_I.txt': [позиция_2a, позиция_2b, позиция 2c],
+        },
+        ...
+    }.
+
+    Позиции суть экземпляры класса Position (см. выше). Имена файлов и поискового индекса задаются ниже.
+    Перед записью в индекс словоформы подвергаются морфоанализу (по убыванию алгоритмической сложности
+    и лингвистической корректности): 1) по возможности - лемматизации, 2) по невозможности - стеммингу
+    на основе конечного автомата, 3) по его же невозможности - стеммингу на основе отсечения финали.
+    """
 
     def __init__(self):
         self.morph = Analyser()
@@ -37,13 +54,12 @@ class Indexer(object):
 
         for i, line in enumerate(file):
             for token in Tokeniser.tokenise(line):
-                if token.kind in ('ALPHABETIC', 'NUMERIC'):
-                    for norm in self.morph.lemmatiser(token):
-                        p = Position(i, token.start, token.end)
+                for norm in self.morph.lemmatiser(token):
+                    p = Position(i, token.start, token.end)
 
-                        data = db.setdefault(norm, {})
-                        data.setdefault(file_path, []).append(p)
-                        db[norm] = data
+                    data = db.setdefault(norm, {})
+                    data.setdefault(file_path, []).append(p)
+                    db[norm] = data
 
         db.close()
         file.close()

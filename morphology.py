@@ -24,6 +24,7 @@ class Analyser(object):
             'я',   'ял',  'яла', 'яли', 'ять', 'яя',
         }
 
+        # Максимальная длина флексии вычисляется единожды!
         self.max_len = max(len(x) for x in self.d if any(self.d[x][i] is None for i in self.d[x]))
         self.chunker = Chunker()
 
@@ -31,6 +32,14 @@ class Analyser(object):
         self.d.close()
 
     def lemmatiser(self, t):
+        """
+        Осуществляет лемматизацию на основе базы морфологических сведений, извлечённых из Викисловаря.
+        Если лемматизация не проходит (на основе одного из условий, см. ниже), то делается фолбэк к стеммингу.
+
+        :param t: анализируемый токен
+        :return: кортеж из его лемм
+        """
+
         s = t.string
         otpt = []
 
@@ -62,6 +71,15 @@ class Analyser(object):
             return self.stemmer(s)
 
     def stemmer(self, s):
+        """
+        Осуществляет стемминг 1) на основе конечного автомата (возможный лишь на ограниченном множестве морфем),
+        при неудаче - 2) простым отсечением финали. Последние заданы в атрибуте infl_glob. Если не удаётся
+        сделать и это, то просто возвращает строковое представление токена.
+
+        :param s: строковое представление анализируемого токена
+        :return: кортеж из его основ
+        """
+
         otpt = set(''.join(m for m in segm if not segm[m].startswith(('f', 's_Fl'))) for segm in self.chunker.chunk(s, full=True))
 
         if otpt:
